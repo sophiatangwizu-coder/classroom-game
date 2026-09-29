@@ -115,56 +115,49 @@ function balancedGroupSizes(total){const sizes=Array(8).fill(Math.floor(total/8)
 function actor(g=game){const group=ORDER[g.turn%8],seat=Math.floor(g.turn/8),members=g.settings.groups[group];let index=seat;if(index>=members.length){const candidates=members.map((_,i)=>({index:i,count:g.log.filter(l=>l.group===group&&l.memberIndex===i).length+(g.manualFirstRound&&i<3?1:0),failed:g.log.some(l=>l.group===group&&l.memberIndex===i&&l.result!=='correct')}));candidates.sort((a,b)=>a.count-b.count||Number(b.failed)-Number(a.failed)||a.index-b.index);index=candidates[0].index;}return{group,memberIndex:index,member:members[index],team:group<4?'X':'O',cycle:seat+1};}
 function render(){const b=selectedBank(),s=game?.settings||store.settings;$('classLabel').textContent=s.className+' · 起立选格，独立作答';$('bankSelect').innerHTML=store.banks.length?store.banks.map(b=>`<option value="${esc(b.id)}">${esc(b.name)} · ${b.items.length}题</option>`).join(''):'<option value="">请先导入题库</option>';$('bankSelect').value=store.selected||'';$('bankSelect').disabled=!!game&&game.phase!=='finished';const chosen=store.playMode||'two';$('playMode').value=chosen;$('startBtn').textContent=(game?'重新开始':'开始')+'二轮';$('startBtn').disabled=!b;$('undoBtn').disabled=!history.length;$('pauseBtn').disabled=!game||game.phase!=='playing'||!!game.active?.feedback;$('pauseBtn').textContent=game?.paused?'继续':'暂停';$('nameX').textContent=s.X;$('nameO').textContent=s.O;
  for(const t of ['X','O']){$('points'+t).textContent=game?.scores[t]||0;$('score'+t).classList.toggle('active',!!game&&game.phase==='playing'&&actor().team===t);const correct=game?.log.filter(l=>l.team===t&&l.result==='correct').length||0;const lines=game?game.lines.flat().filter(l=>l.team===t).length:0;$('detail'+t).textContent=game?`${correct}题 · ${lines}条连线`:t==='X'?'1—4组':'5—8组';}
- const isContest=game?contestMode():chosen==='contest',limit=24,total=48,done=game?game.turn-game.round*24:0;$('roundLabel').textContent=(isContest?'二轮争夺':'二轮重开')+(game?` · 第 ${game.round+1} 轮 / 2`:' · 准备开始');$('gameRules').innerHTML=(isContest?['起立选格，翻开后自动计时。','可挑战空格或对方格子。','每次正式作答换一道新题。','答错或超时，归属不变。','每轮24次，第二轮保留占格。']:['起立选格，翻开后自动计时。','说完后由老师停表并判分。','答错、超时不占格，原题保留。','无论对错，依次轮换小组。','五格连线加分，24次后结算。']).map(rule=>'<li>'+rule+'</li>').join('');$('board').classList.toggle('paused',!!game?.paused);$('board').innerHTML=Array.from({length:25},(_,i)=>{const owner=game?.owners[game.round][i],disabled=!selectableCell(i);return`<button class="cell ${owner?.toLowerCase()||''}" ${disabled?'disabled':''} aria-label="第${i+1}格${owner?'，已被'+owner+'占领':''}" onclick="openQuestion(${i})">${owner||String(i+1).padStart(2,'0')}${owner?`<small>${i+1}</small>`:''}</button>`;}).join('');
+ const isContest=game?contestMode():chosen==='contest',limit=24,total=48,done=game?game.turn-game.round*24:0;$('roundLabel').textContent=(isContest?'二轮争夺':'二轮重开')+(game?` · 第 ${game.round+1} 轮 / 2`:' · 准备开始');$('gameRules').innerHTML=(isContest?['起立选格，翻开后自动计时。','可挑战空格或对方格子。','每次正式作答换一道新题。','答错或超时，归属不变。','每轮24次，第二轮保留占格。','同分比最终占格，仍同则加赛。']:['起立选格，翻开后自动计时。','说完后由老师停表并判分。','答错、超时不占格，原题保留。','无论对错，依次轮换小组。','五格连线加分，24次后结算。','两轮比总分，同分进入加赛。']).map(rule=>'<li>'+rule+'</li>').join('');$('board').classList.toggle('paused',!!game?.paused);$('board').innerHTML=Array.from({length:25},(_,i)=>{const owner=game?.owners[game.round][i],disabled=!selectableCell(i);return`<button class="cell ${owner?.toLowerCase()||''}" ${disabled?'disabled':''} aria-label="第${i+1}格${owner?'，已被'+owner+'占领':''}" onclick="openQuestion(${i})">${owner||String(i+1).padStart(2,'0')}${owner?`<small>${i+1}</small>`:''}</button>`;}).join('');
  $('summaryBtn').hidden=!game||!['roundEnd','finished'].includes(game.phase);$('boardHint').textContent=game?`${game.bank.name} · ${game.phase==='playing'?(isContest?'可选空格或对方格子；答对翻转归属':'请选择未占领的格子'):'本轮结束，可讲解题目和查看结算'}`:b?`${b.items.length}道题 · ${isContest?'本场需'+total+'道不重复题':'每轮需25道，建议准备50道'}`:'先导入一个题库';$('progressFill').style.width=(done/limit*100)+'%';$('progressText').textContent=game?`本轮已完成 ${done} / ${limit} 次`:'每轮24次，共两轮48次';
  if(game?.phase==='playing'){const a=actor();$('groupLabel').textContent=`${s[a.team]} · 第${a.group+1}组`;$('memberLabel').textContent=a.member;$('turnHint').textContent=`第${Math.min(done+1,limit)}/${limit}次 · 组内${a.memberIndex+1}号${a.cycle>s.groups[a.group].length?'（再次挑战）':''}${game.paused?' · 已暂停':''}`;}else{$('groupLabel').textContent=game?'本轮已完成':'8组 · 每组4—6人';$('memberLabel').textContent=game?(game.phase==='finished'?'两轮挑战完成':'准备进入第二轮'):'准备就绪了吗？';$('turnHint').textContent=game?'可查看结算、复习题目和撤销误判。':'每人独立作答，起立后不能讨论。';}
  $('logCount').textContent=(game?.turn||0)+' / '+total;$('recentLog').innerHTML=game?.log.length?game.log.slice(-8).reverse().map(l=>`<p>第${l.group+1}组 · ${esc(l.member)} <b>${resultLabel(l.result)}</b>${l.bonus?' · 连线+'+l.bonus:''}</p>`).join(''):game?.manualFirstRound?'<p class="hint">首轮比分已补录，详细记录从第二轮开始。</p>':'<p class="hint">答题记录将在这里出现。</p>';
 }
-function startGame(secondRoundScores=null){const b=selectedBank();if(!b)return;const mode=store.playMode||'two',single=mode==='contest',totalTurns=48,minimum=single?48:25;if(!validGroups(store.settings.groups))return notify('请先调整名单：8组，每组4—6人。');if(b.items.length<minimum)return notify(`本玩法需要至少${minimum}道题，目前${b.items.length}道，请先补足。`);if(b.items.some(q=>itemErrors(q).length))return notify('题库含待确认题目，请先编辑并修正。');if(game&&!confirm('重新开始将清空本次比赛的得分与作答记录，确定吗？'))return;if(!secondRoundScores&&!single&&b.items.length<50&&!confirm(`本题库有${b.items.length}题。第二轮优先抽取新题，不足部分将复用第一轮题目，继续吗？`))return;stopClock();clearTimeout(revealTimeout);$('question').close();$('summary').close();history=[];const bank=clone(b),deck=single?shuffled(bank.items).slice(0,totalTurns):[];game={mode,totalTurns,deck,bank,settings:clone(store.settings),boards:single?[deck.slice(0,25),[]]:buildBoards(bank.items),owners:[Array(25).fill(null),Array(25).fill(null)],lines:[[],[]],scores:{X:0,O:0},round:0,turn:0,phase:'playing',paused:false,log:[],active:null};if(secondRoundScores){game.scores=clone(secondRoundScores);game.manualFirstRound={scores:clone(secondRoundScores)};game.round=1;game.turn=24;if(single)game.boards[1]=clone(game.boards[0]);}render();return true;}
-function questionItem(){return game.boards[game.round][game.active.cell];}
+function startGame(){const b=selectedBank();if(!b)return;const mode=store.playMode||'two',single=mode==='contest',totalTurns=48,minimum=single?48:25;if(!validGroups(store.settings.groups))return notify('请先调整名单：8组，每组4—6人。');if(b.items.length<minimum)return notify(`本玩法需要至少${minimum}道题，目前${b.items.length}道，请先补足。`);if(b.items.some(q=>itemErrors(q).length))return notify('题库含待确认题目，请先编辑并修正。');if(game&&!confirm('重新开始将清空本次比赛的得分与作答记录，确定吗？'))return;if(!single&&b.items.length<50&&!confirm(`本题库有${b.items.length}题。第二轮优先抽取新题，不足部分将复用第一轮题目，继续吗？`))return;stopClock();clearTimeout(revealTimeout);$('question').close();$('summary').close();stopOvertimeMusic();$('overtimeArena').close();history=[];const bank=clone(b),deck=single?shuffled(bank.items).slice(0,totalTurns):[];game={mode,totalTurns,deck,bank,settings:clone(store.settings),boards:single?[deck.slice(0,25),[]]:buildBoards(bank.items),owners:[Array(25).fill(null),Array(25).fill(null)],lines:[[],[]],scores:{X:0,O:0},round:0,turn:0,phase:'playing',paused:false,log:[],active:null};render();return true;}
+function questionItem(){return game.active.overtime?game.overtime.pairs[game.overtime.pairIndex].questions[(game.overtime.log.length-(game.active.feedback?1:0))%2]:game.boards[game.round][game.active.cell];}
 function duration(q){return +(q.seconds||game.bank.timers[q.type]||TIMES[q.type]);}
 function openQuestion(cell){if(!selectableCell(cell))return;lastBeep=null;if(contestMode())game.boards[game.round][cell]=clone(game.deck[game.turn]);const q=game.boards[game.round][cell];game.active={cell,actor:actor(),status:'revealing',remaining:duration(q)*1000,total:duration(q)*1000,feedback:false};$('question').showModal();$('questionInner').classList.remove('flip');void $('questionInner').offsetWidth;$('questionInner').classList.add('flip');renderQuestion();render();revealTimeout=setTimeout(()=>{if(game?.active?.status==='revealing'){game.active.status='running';game.active.deadline=performance.now()+game.active.remaining;renderQuestion();runClock();}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:420);}
-function renderQuestion(){const a=game?.active;if(!a)return;$('question').dataset.team=a.actor.team;$('question').classList.toggle('success-zone',a.feedback);const q=questionItem();$('questionType').textContent=TYPES[q.type]+' · 第'+(a.cell+1)+'格';$('questionActor').textContent=game.settings[a.actor.team]+' · 第'+(a.actor.group+1)+'组 · '+a.actor.member;$('questionText').textContent=q.prompt;$('questionOptions').innerHTML=q.options.map((o,i)=>`<div class="option">${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join('');$('questionAnswer').hidden=!a.feedback;$('answerText').textContent=a.feedback?q.answer:'';$('questionStatus').textContent=a.feedback?(a.bonus?'五格连线！本次 +'+(1+a.bonus)+' 分，继续迎战！':'占领成功！+1 分，下一位准备。'):a.status==='answered'?'已停表，请教师判定。':a.status==='paused'?'已暂停，请停止作答。':a.status==='revealing'?'题目展开后立即计时。':'独立作答，其他同学不得提示。';$('completeBtn').hidden=a.feedback;$('completeBtn').disabled=a.status!=='running';for(const id of ['correctBtn','wrongBtn']){$(id).hidden=a.feedback;$(id).disabled=a.status!=='answered';}$('continueBtn').hidden=!a.feedback;$('cancelQuestion').hidden=a.feedback;$('qPause').disabled=a.feedback||a.status==='answered';$('qPause').textContent=a.status==='paused'?'继续':'暂停';renderTime();}
+function renderQuestion(){const a=game?.active;if(!a)return;$('question').dataset.team=a.actor.team;$('question').classList.toggle('success-zone',a.feedback);const q=questionItem();$('questionType').textContent=TYPES[q.type]+' · 第'+(a.cell+1)+'格';$('questionActor').textContent=game.settings[a.actor.team]+' · 第'+(a.actor.group+1)+'组 · '+a.actor.member;$('questionText').textContent=q.prompt;$('questionOptions').innerHTML=q.options.map((o,i)=>`<div class="option">${String.fromCharCode(65+i)}. ${esc(o)}</div>`).join('');$('questionAnswer').hidden=!a.feedback;$('answerText').textContent=a.feedback?q.answer:'';$('questionStatus').textContent=a.feedback?(a.bonus?'五格连线！本次 +'+(1+a.bonus)+' 分，继续迎战！':'占领成功！+1 分，下一位准备。'):a.status==='answered'?'已停表，请教师判定。':a.status==='paused'?'已暂停，请停止作答。':a.status==='revealing'?'题目展开后立即计时。':'独立作答，其他同学不得提示。';$('completeBtn').hidden=a.feedback;$('completeBtn').disabled=a.status!=='running';for(const id of ['correctBtn','wrongBtn']){$(id).hidden=a.feedback;$(id).disabled=a.status!=='answered';}$('continueBtn').hidden=!a.feedback;$('continueBtn').textContent='下一位 →';$('cancelQuestion').hidden=a.feedback;$('qPause').disabled=a.feedback||a.status==='answered';$('qPause').textContent=a.status==='paused'?'继续':'暂停';$('wrongBtn').textContent='答错 · 不占格';$('correctBtn').textContent='答对 · 占格';$('overtimeQuestionMusic').hidden=!a.overtime;if(a.overtime)renderOvertimeQuestion();renderTime();}
 function renderTime(){const a=game?.active;if(!a)return;const seconds=Math.max(0,a.remaining)/1000;const urgent=seconds<=3&&a.status==='running';$('question').classList.toggle('danger-zone',urgent);$('clock').style.setProperty('--remaining',Math.max(0,a.remaining/a.total*100)+'%');if(urgent){$('questionStatus').textContent='最后 '+Math.ceil(seconds)+' 秒 · 完成你的回答！';const beat=Math.ceil(seconds);if(lastBeep!==beat){lastBeep=beat;playSound('tick');}}$('clock').textContent=a.feedback?'✓':seconds.toFixed(1)+'s';$('clock').classList.toggle('urgent',seconds<=3&&a.status==='running');$('timeFill').style.width=Math.max(0,Math.min(100,a.remaining/a.total*100))+'%';}
 function runClock(){stopClock();clockInterval=setInterval(tick,50);}
 function stopClock(){clearInterval(clockInterval);clockInterval=null;}
 function tick(){const a=game?.active;if(!a||a.status!=='running')return;a.remaining=Math.max(0,a.deadline-performance.now());renderTime();if(a.remaining<=0){stopClock();a.status='expired';settle('timeout');}}
 function completeAnswer(){const a=game?.active;if(a?.status!=='running')return;tick();if(game?.active!==a||a.status!=='running')return;stopClock();a.status='answered';renderQuestion();}
-function togglePause(){if(!game||game.phase!=='playing'||game.active?.feedback)return;const a=game.active;if(a){if(a.status==='answered')return;if(a.status==='running'){tick();if(game.active!==a)return;stopClock();a.status='paused';game.paused=true;}else if(a.status==='revealing'){clearTimeout(revealTimeout);a.status='paused';game.paused=true;}else if(a.status==='paused'){a.status='running';a.deadline=performance.now()+a.remaining;game.paused=false;runClock();}renderQuestion();}else game.paused=!game.paused;render();}
-function cancelQuestion(){if(!game?.active||game.active.feedback)return;if(!confirm('取消本次选格并返回同一位成员？这不会消耗作答机会。'))return;stopClock();clearTimeout(revealTimeout);game.active=null;game.paused=false;$('question').close();render();}
+function togglePause(){if(!game||(game.phase!=='playing'&&!game.active?.overtime)||game.active?.feedback)return;const a=game.active;if(a){if(a.status==='answered')return;if(a.status==='running'){tick();if(game.active!==a)return;stopClock();a.status='paused';game.paused=true;}else if(a.status==='revealing'){clearTimeout(revealTimeout);a.status='paused';game.paused=true;}else if(a.status==='paused'){a.status='running';a.deadline=performance.now()+a.remaining;game.paused=false;runClock();}renderQuestion();}else game.paused=!game.paused;render();if(game.active?.overtime){if(game.paused)stopOvertimeMusic();else startOvertimeMusic();}}
+function cancelQuestion(){if(!game?.active||game.active.feedback)return;if(!confirm('取消本次选格并返回同一位成员？这不会消耗作答机会。'))return;stopClock();clearTimeout(revealTimeout);const overtime=game.active.overtime;game.active=null;game.paused=false;$('question').close();render();if(overtime){game.overtime.phase='ready';openOvertimeArena();}}
 function lineList(){const a=[];for(let i=0;i<5;i++){a.push(Array.from({length:5},(_,j)=>i*5+j));a.push(Array.from({length:5},(_,j)=>j*5+i));}a.push([0,6,12,18,24],[4,8,12,16,20]);return a;}
 function awardLines(){let bonus=0;const owners=game.owners[game.round];lineList().forEach((cells,id)=>{const team=owners[cells[0]];if(team&&cells.every(c=>owners[c]===team)&&!(contestMode()?game.lines.flat():game.lines[game.round]).some(l=>l.id===id&&l.team===team)){game.lines[game.round].push({id,team,cells});game.scores[team]+=5;bonus+=5;}});return bonus;}
 function resultLabel(r){return{correct:'答对',wrong:'答错',timeout:'超时'}[r];}
-function settle(result){const a=game?.active;if(!a||a.feedback||!((result==='timeout'&&a.status==='expired')||(['correct','wrong'].includes(result)&&a.status==='answered')))return;stopClock();history.push(clone(game));const q=questionItem();let bonus=0;if(result==='correct'){game.owners[game.round][a.cell]=a.actor.team;game.scores[a.actor.team]++;bonus=awardLines();}game.log.push({...a.actor,round:game.round,cell:a.cell,itemId:q.id,prompt:q.prompt,question:clone(q),result,bonus});game.turn++;game.paused=false;if(game.turn%24===0)game.phase=game.round===0?'roundEnd':'finished';playSound(result==='correct'?(bonus?'line':'correct'):result);if(result==='correct'){a.bonus=bonus;a.feedback=true;a.status='feedback';renderQuestion();render();const wonCell=$('board').children[a.cell];wonCell?.classList.add('claim-pop');}else{game.active=null;$('question').close();render();notify(contestMode()?(result==='timeout'?'时间到，格子归属不变，轮到下一组。':'答错，格子归属不变，下一次挑战换新题。'):(result==='timeout'?'时间到，不占格。按顺序轮到下一组。':'答错，不占格。原题保留，轮到下一组。'));if(game.phase!=='playing')openSummary();}}
-function continueAfterAnswer(){if(!game?.active?.feedback)return;game.active=null;$('question').close();render();if(game.phase!=='playing')openSummary();}
-function undoAttempt(){if(!history.length)return;stopClock();clearTimeout(revealTimeout);$('question').close();$('summary').close();game=history.pop();game.phase='playing';game.paused=false;game.active.status='answered';game.active.feedback=false;game.active.remaining=Math.max(0,game.active.remaining);render();$('question').showModal();renderQuestion();notify('已撤销该次判定、得分及轮换。请重新判定；若要重答可取消选格。');}
+function settle(result){const a=game?.active;if(!a||a.feedback||!((result==='timeout'&&a.status==='expired')||(['correct','wrong'].includes(result)&&a.status==='answered')))return;if(a.overtime){settleOvertime(result);return;}stopClock();history.push(clone(game));const q=questionItem();let bonus=0;if(result==='correct'){game.owners[game.round][a.cell]=a.actor.team;game.scores[a.actor.team]++;bonus=awardLines();}game.log.push({...a.actor,round:game.round,cell:a.cell,itemId:q.id,prompt:q.prompt,question:clone(q),result,bonus});game.turn++;game.paused=false;if(game.turn%24===0)game.phase=game.round===0?'roundEnd':'finished';playSound(result==='correct'?(bonus?'line':'correct'):result);if(result==='correct'){a.bonus=bonus;a.feedback=true;a.status='feedback';renderQuestion();render();const wonCell=$('board').children[a.cell];wonCell?.classList.add('claim-pop');}else{game.active=null;$('question').close();render();notify(contestMode()?(result==='timeout'?'时间到，格子归属不变，轮到下一组。':'答错，格子归属不变，下一次挑战换新题。'):(result==='timeout'?'时间到，不占格。按顺序轮到下一组。':'答错，不占格。原题保留，轮到下一组。'));if(game.phase!=='playing')openSummary();}}
+function continueAfterAnswer(){if(!game?.active?.feedback)return;const overtime=game.active.overtime;game.active=null;$('question').close();render();if(overtime)openOvertimeArena();else if(game.phase!=='playing')openSummary();}
+function undoAttempt(){if(!history.length)return;stopOvertimeMusic();$('overtimeArena').close();stopClock();clearTimeout(revealTimeout);$('question').close();$('summary').close();game=history.pop();game.phase='playing';game.paused=false;game.active.status='answered';game.active.feedback=false;game.active.remaining=Math.max(0,game.active.remaining);render();$('question').showModal();renderQuestion();notify('已撤销该次判定、得分及轮换。请重新判定；若要重答可取消选格。');}
 function nextRound(){if(!game||game.phase!=='roundEnd')return;if(contestMode()){game.owners[1]=clone(game.owners[0]);game.boards[1]=clone(game.boards[0]);}game.round=1;game.phase='playing';game.paused=false;game.active=null;$('summary').close();render();notify(contestMode()?'第二轮开始，棋盘占格和总分保留，可挑战对方格子。':'第二轮开始，各组从4号继续，棋盘清空，总分保留。');}
-function losingAttempts(){if(!game||game.phase!=='finished'||game.scores.X===game.scores.O)return[];const team=game.scores.X<game.scores.O?'X':'O';return game.log.map((log,index)=>({...log,attempt:index+1})).filter(log=>log.team===team&&['wrong','timeout'].includes(log.result));}
+function losingAttempts(){const outcome=finalOutcome();if(!game||game.phase!=='finished'||!outcome.winner)return[];const team=outcome.winner==='X'?'O':'X';return [...game.log,...(game.overtime?.log||[])].filter(log=>log.team===team&&['wrong','timeout'].includes(log.result));}
 function losingRecordText(){return losingAttempts().map(log=>`第${log.group+1}组 · 组内${log.memberIndex+1}号 · ${log.member} · ${resultLabel(log.result)}`).join('\n');}
-function updateLosingCopy(){const logs=losingAttempts();$('losingCopy').hidden=game.phase!=='finished';$('copyLosingBtn').disabled=!logs.length;$('losingCopyHint').textContent=game.scores.X===game.scores.O?'双方并列，没有失败队伍。':logs.length?`复制败队的${logs.length}次记录，仅含小组、组内序号、姓名及答错或超时。`:'败队没有答错或超时记录。';$('losingCopyFallback').hidden=true;$('losingCopyText').value='';}
+function updateLosingCopy(){const logs=losingAttempts();$('losingCopy').hidden=game.phase!=='finished';$('copyLosingBtn').disabled=!logs.length;$('losingCopyHint').textContent=!finalOutcome().winner?(finalOutcome().pending?'等待加赛结果。':'双方并列，没有失败队伍。'):logs.length?`复制败队的${logs.length}次记录，仅含小组、组内序号、姓名及答错或超时。`:'败队没有答错或超时记录。';$('losingCopyFallback').hidden=true;$('losingCopyText').value='';}
 async function copyLosingRecords(){const text=losingRecordText();if(!text)return;try{await navigator.clipboard.writeText(text);notify('已复制败队答错记录（含超时）。');}catch(e){const box=$('losingCopyText');box.value=text;$('losingCopyFallback').hidden=false;box.focus();box.select();let copied=false;try{copied=document.execCommand('copy');}catch(e){}if(copied){$('losingCopyFallback').hidden=true;notify('已复制败队答错记录（含超时）。');}else{notify('浏览器未允许自动复制，已选中记录，请按 Command+C 或 Ctrl+C。');}}}
-function openSummary(){if(!game||!['roundEnd','finished'].includes(game.phase))return;updateLosingCopy();const winner=game.scores.X===game.scores.O?'双方并列':game.settings[game.scores.X>game.scores.O?'X':'O']+'获胜';$('summaryTitle').textContent=game.phase==='finished'?'两轮结束 · '+winner:'第一轮完成 · 中场结算';$('summaryScores').textContent=`累计总分：${game.settings.X} ${game.scores.X} : ${game.scores.O} ${game.settings.O}。每次答对1分，每条五格连线另加5分${contestMode()?'；同一队同一条线全场只奖一次':''}。`+(game.manualFirstRound?' 首轮比分为手动补录；以下详细统计及复制记录仅包含第二轮。':'');
+function openSummary(){if(!game||!['roundEnd','finished'].includes(game.phase))return;updateLosingCopy();const outcome=finalOutcome(),winner=outcome.winner?game.settings[outcome.winner]+'获胜':outcome.pending?'平局 · 待加赛':'双方并列';$('summaryTitle').textContent=game.phase==='finished'?'两轮结束 · '+winner:'第一轮完成 · 中场结算';$('summaryScores').textContent=`累计总分：${game.settings.X} ${game.scores.X} : ${game.scores.O} ${game.settings.O}。每次答对1分，每条五格连线另加5分${contestMode()?'；同一队同一条线全场只奖一次':''}。`+(game.manualFirstRound?' 首轮比分为手动补录；以下详细统计及复制记录仅包含第二轮。':'');
  $('summaryStats').innerHTML='<table><thead><tr><th>阵营</th><th>答对</th><th>答错</th><th>超时</th><th>连线</th></tr></thead><tbody>'+['X','O'].map(t=>`<tr><td>${esc(game.settings[t])}</td>${['correct','wrong','timeout'].map(r=>`<td>${game.log.filter(l=>l.team===t&&l.result===r).length}</td>`).join('')}<td>${game.lines.flat().filter(l=>l.team===t).length}</td></tr>`).join('')+'</tbody></table>';
  $('memberStats').innerHTML='<table><tr><th>小组 / 成员</th><th>参与次数</th><th>答对</th></tr>'+game.settings.groups.flatMap((members,g)=>members.map((m,i)=>{const logs=game.log.filter(l=>l.group===g&&l.memberIndex===i);return`<tr><td>第${g+1}组 · ${esc(m)}</td><td>${logs.length}</td><td>${logs.filter(l=>l.result==='correct').length}</td></tr>`;})).join('')+'</table>';
- const roundLogs=game.log.filter(l=>l.round===game.round);$('reviewItems').innerHTML=(contestMode()?roundLogs.map(l=>l.question):game.boards[game.round]).map((q,i)=>`<div class="review-card"><b>${contestMode()?'第'+(i+1)+'次 · 第'+(roundLogs[i].cell+1)+'格':i+1+'.'} ${esc(TYPES[q.type])}</b><p>${esc(q.prompt)}</p><p>${q.options.map((o,j)=>esc(String.fromCharCode(65+j)+'. '+o)).join('\n')}</p><p style="color:#246943">答案：${esc(q.answer)}</p></div>`).join('');$('allLogs').innerHTML='<table><tr><th>轮 / 格</th><th>成员</th><th>结果</th><th>得分</th></tr>'+game.log.map(l=>`<tr><td>${l.round+1} / ${l.cell+1}</td><td>${esc(l.member)}</td><td>${resultLabel(l.result)}</td><td>${l.result==='correct'?1+l.bonus:0}</td></tr>`).join('')+'</table>';$('nextRoundBtn').hidden=game.phase==='finished';$('summary').querySelectorAll('details').forEach(d=>d.open=false);if(!$('summary').open)$('summary').showModal();}
+ const roundLogs=game.log.filter(l=>l.round===game.round);$('reviewItems').innerHTML=(contestMode()?roundLogs.map(l=>l.question):game.boards[game.round]).map((q,i)=>`<div class="review-card"><b>${contestMode()?'第'+(i+1)+'次 · 第'+(roundLogs[i].cell+1)+'格':i+1+'.'} ${esc(TYPES[q.type])}</b><p>${esc(q.prompt)}</p><p>${q.options.map((o,j)=>esc(String.fromCharCode(65+j)+'. '+o)).join('\n')}</p><p style="color:#246943">答案：${esc(q.answer)}</p></div>`).join('');$('allLogs').innerHTML='<table><tr><th>轮 / 格</th><th>成员</th><th>结果</th><th>得分</th></tr>'+game.log.map(l=>`<tr><td>${l.round+1} / ${l.cell+1}</td><td>${esc(l.member)}</td><td>${resultLabel(l.result)}</td><td>${l.result==='correct'?1+l.bonus:0}</td></tr>`).join('')+'</table>';$('nextRoundBtn').hidden=game.phase==='finished';$('summary').querySelectorAll('details').forEach(d=>d.open=false);if(!$('summary').open)$('summary').showModal();renderOvertimeSummary();}
 let pendingBackup=null,backupReadToken=0;
 function openRecovery(){
  if(game?.active)return;
  pendingBackup=null;backupReadToken++;$('restorePreview').hidden=true;$('backupFile').value='';$('backupError').textContent='';
- $('recoveryContext').textContent=`当前选择：${store.playMode==='contest'?'二轮争夺':'二轮重开'} · ${selectedBank()?.name||'未选择题库'}`;
- ['X','O'].forEach(t=>{$('resumeLabel'+t).textContent=store.settings[t]+' · 首轮最终得分';$('resumeScore'+t).value=game?.round===0?game.scores[t]:0;});
  $('recovery').showModal();
-}
-function resumeSecondRound(){
- const scores={X:Number($('resumeScoreX').value),O:Number($('resumeScoreO').value)};
- if(['X','O'].some(t=>!$('resumeScore'+t).value.trim()||!Number.isSafeInteger(scores[t])||scores[t]<0)){$('backupError').textContent='请输入两队首轮最终得分（含连线奖励），须为非负整数。';return;}
- if(startGame(scores)){$('recovery').close();notify('首轮比分已补录，从各组4号开始第二轮，棋盘为空。');}
 }
 // Export only settled or paused timer state: performance.now() deadlines cannot
 // survive closing a tab, and offline time must not count as answering time.
 function backupSnapshot(){
  if(game?.active&&['running','revealing'].includes(game.active.status))togglePause();
- const snapshot=clone({format:'classroom-five-backup',version:1,savedAt:new Date().toISOString(),store,game,history});
+ stopOvertimeMusic();const snapshot=clone({format:'classroom-five-backup',version:1,savedAt:new Date().toISOString(),store,game,history});
  if(snapshot.game?.active)delete snapshot.game.active.deadline;
  snapshot.history.forEach(g=>{if(g.active)delete g.active.deadline;});
  return snapshot;
@@ -195,11 +188,11 @@ function validateBackup(data){
   check(Array.isArray(g.log)&&g.log.length===g.turn-(g.manualFirstRound?24:0));
   g.log.forEach((l,i)=>{member(l,g);check(int(l.cell,0,24)&&l.round===Math.floor((i+(g.manualFirstRound?24:0))/24)&&['correct','wrong','timeout'].includes(l.result)&&int(l.bonus,0,60)&&str(l.prompt)&&str(l.itemId));item(l.question);});
   for(const t of ['X','O'])check(g.scores[t]===(g.manualFirstRound?.scores[t]||0)+g.log.filter(l=>l.team===t&&l.result==='correct').reduce((n,l)=>n+1+l.bonus,0));
-  check(g.active===null||(g.active&&typeof g.active==='object'));
-  if(g.active){const a=g.active;member(a.actor,g);check(int(a.cell,0,24)&&g.boards[g.round][a.cell]&&['revealing','running','paused','answered','expired','feedback'].includes(a.status)&&typeof a.feedback==='boolean'&&Number.isFinite(a.total)&&a.total>0&&Number.isFinite(a.remaining)&&a.remaining>=0&&a.remaining<=a.total);check(a.feedback?(a.status==='feedback'&&g.log.at(-1)?.result==='correct'):g.phase==='playing');}
+  if(g.overtime)validateOvertime(g,check,item,member);check(g.active===null||(g.active&&typeof g.active==='object'));
+  if(g.active){const a=g.active;member(a.actor,g);check(int(a.cell,0,24)&&g.boards[g.round][a.cell]&&['revealing','running','paused','answered','expired','feedback'].includes(a.status)&&typeof a.feedback==='boolean'&&Number.isFinite(a.total)&&a.total>0&&Number.isFinite(a.remaining)&&a.remaining>=0&&a.remaining<=a.total);check(a.overtime?(g.phase==='finished'&&(a.feedback?(a.status==='feedback'&&g.overtime?.log.at(-1)?.result==='correct'):g.overtime?.phase==='answering')):(a.feedback?(a.status==='feedback'&&g.log.at(-1)?.result==='correct'):g.phase==='playing'));}
  };
  check(data&&data.format==='classroom-five-backup'&&data.version===1&&str(data.savedAt)&&Number.isFinite(Date.parse(data.savedAt)));
- const s=data.store;check(s&&s.version===2&&['two','contest',undefined].includes(s.playMode)&&Array.isArray(s.banks)&&s.banks.length<=3);settings(s.settings);s.banks.forEach(bank);check(new Set(s.banks.map(b=>b.id)).size===s.banks.length);check(s.banks.length?s.banks.some(b=>b.id===s.selected):!s.selected);
+ const s=data.store;check(s&&s.version===2&&['two','contest',undefined].includes(s.playMode)&&Array.isArray(s.banks)&&s.banks.length<=3);settings(s.settings);s.banks.forEach(bank);if(s.overtimeBank)check(overtimePairErrors(s.overtimeBank).length===0);check(new Set(s.banks.map(b=>b.id)).size===s.banks.length);check(s.banks.length?s.banks.some(b=>b.id===s.selected):!s.selected);
  check(data.game===null||typeof data.game==='object');if(data.game)validateGame(data.game);
  check(Array.isArray(data.history)&&data.history.length<=48&&(!data.history.length||data.game));data.history.forEach(g=>{validateGame(g);check(g.active&&!g.active.feedback&&g.turn<data.game.turn&&g.mode===data.game.mode);});
  return data;
@@ -207,20 +200,20 @@ function validateBackup(data){
 async function readBackup(file){
  const token=++backupReadToken;pendingBackup=null;$('restorePreview').hidden=true;$('backupError').textContent='';if(!file)return;
  try{if(file.size>50*1024*1024)throw Error('备份文件超过50MB，请检查是否选择了正确的文件。');const data=validateBackup(JSON.parse(await file.text()));if(token!==backupReadToken)return;pendingBackup=data;const g=data.game;
-  $('restoreDescription').textContent=`备份时间：${new Date(data.savedAt).toLocaleString()}。题库${data.store.banks.length}个。`+(g?`${g.settings.className} · ${g.mode==='contest'?'二轮争夺':'二轮重开'} · 第${g.round+1}轮，已完成${g.turn-g.round*24}/24次。${g.settings.X} ${g.scores.X} : ${g.scores.O} ${g.settings.O}。`:'尚未开局，包含题库和课堂设置。');$('restorePreview').hidden=false;
+  $('restoreDescription').textContent=`备份时间：${new Date(data.savedAt).toLocaleString()}。题库${data.store.banks.length}个。`+(g?`${g.settings.className} · ${g.mode==='contest'?'二轮争夺':'二轮重开'} · 第${g.round+1}轮，已完成${g.turn-g.round*24}/24次。${g.settings.X} ${g.scores.X} : ${g.scores.O} ${g.settings.O}。`+(g.overtime?` 加赛第${g.overtime.pairIndex+1}/3组，已完成${g.overtime.log.length}次作答${g.active?.overtime?'；当前题恢复后暂停':g.overtime.phase==='finished'?'；加赛已结束':''}。`:''):'尚未开局，包含题库和课堂设置。');$('restorePreview').hidden=false;
  }catch(e){if(token===backupReadToken)$('backupError').textContent='无法恢复：'+e.message;}
 }
 function restoreBackup(){
  if(!pendingBackup)return;
  if(!confirm('恢复将替换当前比赛、题库和课堂设置。是否使用此备份？'))return;
- const data=clone(pendingBackup);stopClock();clearTimeout(revealTimeout);importToken++;draft=null;lastBeep=null;
+ const data=clone(pendingBackup);stopOvertimeMusic();stopClock();clearTimeout(revealTimeout);importToken++;draft=null;lastBeep=null;
  document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());store=data.store;game=data.game;history=data.history;pendingBackup=null;backupReadToken++;
  if(game?.active){const a=game.active;delete a.deadline;if(!a.feedback&&['revealing','running','paused','expired'].includes(a.status)){a.status='paused';game.paused=true;}else game.paused=false;}
  else if(game?.phase==='playing')game.paused=true;
  persist();render();
  if(game?.active){$('question').showModal();renderQuestion();scheduleQuestionFit();}
- else if(game&&game.phase!=='playing')openSummary();
- notify(!game?'题库和课堂设置已恢复。':game.phase==='playing'?'比赛已恢复；计时不会自动开始，请点击继续或完成判定。':game.phase==='roundEnd'?'备份已恢复，可从结算页继续第二轮。':'完整比赛结果已恢复，可查看最终结算。');
+ else if(game?.overtime&&game.overtime.phase!=='finished')openOvertimeArena();else if(game&&game.phase!=='playing')openSummary();
+ notify(!game?'题库和课堂设置已恢复。':game.overtime&&game.overtime.phase!=='finished'?'加赛进度已恢复；当前题需手动继续，配乐可手动开启。':game.phase==='playing'?'比赛已恢复；计时不会自动开始，请点击继续或完成判定。':game.phase==='roundEnd'?'备份已恢复，可从结算页继续第二轮。':'完整比赛结果已恢复，可查看最终结算。');
 }
 function renderGroupFields(groups){$('groupFields').innerHTML=groups.map((m,i)=>`<div class="field"><label for="group${i}">第${i+1}组 · ${i<4?'蓝队':'红队'}（每行一人）</label><div class="row"><label for="groupSize${i}">到场人数</label><select id="groupSize${i}" onchange="resizeAttendanceGroup(${i},Number(this.value))">${[4,5,6].map(n=>`<option value="${n}" ${n===m.length?'selected':''}>${n}人</option>`).join('')}</select></div><textarea id="group${i}" oninput="updateRosterCount()">${esc(m.join('\n'))}</textarea></div>`).join('');updateRosterCount();}
 function openSettings(){if(game?.active)return;const s=store.settings;$('settingClass').value=s.className;$('settingX').value=s.X;$('settingO').value=s.O;renderGroupFields(s.groups);$('settingsError').textContent='';$('settings').showModal();}
@@ -297,11 +290,183 @@ $('groupFields').previousElementSibling.before(attendancePanel);
 const recoveryDialog=document.createElement('dialog');recoveryDialog.id='recovery';recoveryDialog.className='modal narrow';
 recoveryDialog.innerHTML=`<header class="row spread"><h2>续玩 / 备份</h2><button onclick="document.getElementById('recovery').close()">关闭 ✕</button></header><div class="body stack">
 <section class="stack"><h3>完整备份比赛</h3><p class="hint">保存题库、名单、比分、棋盘占格、题目安排、作答记录和撤销记录。下载后可关闭网页，次日上传此文件接着玩；正在答题时备份会先停表。</p><button id="downloadBackupBtn" class="primary" onclick="downloadBackup()">下载完整备份</button><label class="field"><span>恢复比赛备份（.json）</span><input id="backupFile" type="file" accept=".json,application/json" onchange="readBackup(this.files[0])"></label><div id="restorePreview" class="stack" hidden><p id="restoreDescription" class="notice"></p><p class="hint">确认后将替换本页已有的比赛、题库和课堂设置。</p><button id="restoreBackupBtn" class="primary" onclick="restoreBackup()">确认恢复此备份</button></div></section>
-<hr style="border:0;border-top:1px solid var(--line);width:100%">
-<section class="stack"><h3>没有备份？补录首轮比分</h3><p id="recoveryContext" class="hint"></p><p class="notice">输入两队第一轮最终比分（含连线奖励），直接从各组4号开始第二轮。使用当前已保存名单。补录会重新抽题、从空棋盘开始，不能还原首轮占格、已出题目或答错记录；完整接续请使用上方备份恢复。</p><div class="formgrid"><label class="field"><span id="resumeLabelX"></span><input id="resumeScoreX" type="number" min="0" step="1"></label><label class="field"><span id="resumeLabelO"></span><input id="resumeScoreO" type="number" min="0" step="1"></label></div><button id="resumeSecondBtn" class="primary" onclick="resumeSecondRound()">按比分从第二轮开始 →</button></section><p id="backupError" class="error" role="status"></p></div>`;
+<p id="backupError" class="error" role="status"></p></div>`;
 document.body.append(recoveryDialog);
 recoveryDialog.addEventListener('close',()=>{backupReadToken++;pendingBackup=null;});
 const recoveryButton=document.createElement('button');recoveryButton.id='recoveryBtn';recoveryButton.textContent='续玩 / 备份';recoveryButton.onclick=openRecovery;$('settingsBtn').after(recoveryButton);
 for(const id of ['summary','question']){const button=document.createElement('button');button.textContent='备份进度';button.className='small';button.id=id+'BackupBtn';button.onclick=downloadBackup;$(id).querySelector('footer').prepend(button);}
+// Independent overtime: paired questions and a separate result, never board points.
+let overtimeDraft=null,overtimeImportToken=0,overtimeIntroTimer=null,overtimeMusicTimer=null,overtimeBeat=0,overtimeGain=null,overtimeAudioToken=0;
+function regularOutcome(g=game){
+ if(!g||g.phase!=='finished')return{winner:null,pending:false,reason:''};
+ if(g.scores.X!==g.scores.O)return{winner:g.scores.X>g.scores.O?'X':'O',pending:false,reason:'按两轮累计总分判胜'};
+ if(g.mode==='contest'){const x=g.owners[1].filter(t=>t==='X').length,o=g.owners[1].filter(t=>t==='O').length;if(x!==o)return{winner:x>o?'X':'O',pending:false,reason:`总分相同，按最终占格数判胜：${g.settings.X} ${x} 格，${g.settings.O} ${o} 格`};}
+ return{winner:null,pending:true,reason:g.mode==='contest'?'总分和最终占格数均相同，进入加赛。':'两轮总分相同，进入加赛。'};
+}
+function overtimePairWinner(log){if(log.length!==2)return null;const right=log.filter(l=>l.result==='correct');return right.length===1?right[0].team:null;}
+function finalOutcome(g=game){const regular=regularOutcome(g);if(!regular.pending||!g?.overtime)return regular;const ot=g.overtime;return ot.phase==='finished'?{winner:ot.winner,pending:false,reason:ot.winner?`第${ot.pairIndex+1}组加赛决胜，两队均已作答。`:'三组加赛后仍相同，双方并列获胜。'}:regular;}
+function renderOvertimeSummary(){
+ const outcome=finalOutcome();$('overtimeSummary').hidden=game.phase!=='finished';if(game.phase!=='finished')return;
+ $('overtimeVerdict').textContent=outcome.reason;
+ $('overtimeEnter').hidden=!outcome.pending;$('overtimeEnter').textContent=game.overtime?'继续加赛 →':'平局 · 准备加赛 →';
+ $('overtimeSummaryLog').textContent=(game.overtime?.log||[]).map(l=>`第${l.pair+1}组 · ${game.settings[l.team]} · 第${l.group+1}组${l.memberIndex+1}号 ${l.member}：${resultLabel(l.result)}`).join('\n');
+}
+function randomIndex(n){if(globalThis.crypto?.getRandomValues){const v=new Uint32Array(1),limit=Math.floor(4294967296/n)*n;do{crypto.getRandomValues(v);}while(v[0]>=limit);return v[0]%n;}return Math.floor(Math.random()*n);}
+const overtimeMemberKey=a=>a.group+':'+a.memberIndex;
+function overtimeCandidates(team,ot=game.overtime){
+ let pool=game.settings.groups.flatMap((members,group)=>members.map((member,memberIndex)=>({group,memberIndex,member,team:group<4?'X':'O'}))).filter(a=>a.team===team&&!ot.excluded.includes(overtimeMemberKey(a)));
+ const fresh=pool.filter(a=>!ot.log.some(l=>overtimeMemberKey(l)===overtimeMemberKey(a)));if(fresh.length)pool=fresh;
+ const count=a=>game.log.filter(l=>overtimeMemberKey(l)===overtimeMemberKey(a)).length+(game.manualFirstRound&&a.memberIndex<3?1:0);
+ const min=Math.min(...pool.map(count));return pool.filter(a=>count(a)===min);
+}
+function drawOvertimeMember(team){const pool=overtimeCandidates(team);return pool.length?pool[randomIndex(pool.length)]:null;}
+function overtimeOrder(ot=game.overtime){const first=ot.pairIndex%2?(ot.firstTeam==='X'?'O':'X'):ot.firstTeam;return[first,first==='X'?'O':'X'];}
+function markOvertimeAbsent(team){
+ const ot=game?.overtime;if(!ot||ot.phase!=='ready'||ot.log.some(l=>l.pair===ot.pairIndex&&l.team===team))return;
+ const a=ot.actors[team];if(!a)return;
+ if(!confirm(`将第${a.group+1}组${a.memberIndex+1}号 ${a.member}标记为缺席，并重新抽选？`))return;
+ ot.excluded.push(overtimeMemberKey(a));ot.actors[team]=drawOvertimeMember(team);renderOvertimeArena();
+}
+function overtimePairErrors(pairs){
+ const errors=[];if(!Array.isArray(pairs)||pairs.length!==3)return['请准备3组、共6道加赛题，每相邻两题配成一组。'];
+ pairs.forEach((p,i)=>{if(!p||!Object.hasOwn(TYPES,p.type)||!validSeconds(p.seconds)||!Array.isArray(p.questions)||p.questions.length!==2){errors.push(`第${i+1}组：须选择题型、填写正整数秒数并提供两题。`);return;}p.questions.forEach((q,j)=>{if(!q||typeof q.id!=='string'||typeof q.prompt!=='string'||typeof q.answer!=='string'||!Array.isArray(q.options)||!q.options.every(x=>typeof x==='string')){errors.push(`第${i+1}组第${j+1}题格式不完整。`);return;}if(q.type!==p.type||itemErrors(q).length)errors.push(`第${i+1}组第${j+1}题：${itemErrors(q).join('；')||'两题须为同一题型'}`);});});return errors;
+}
+function openOvertimeSetup(){
+ if(game?.active)return;overtimeImportToken++;overtimeDraft=clone(store.overtimeBank||Array.from({length:3},()=>({type:'en_zh',seconds:55,questions:[newItem('en_zh'),newItem('en_zh')]})));
+ $('overtimeSetupError').textContent='';$('overtimeWord').value='';$('overtimePaste').value='';$('overtimeLaunch').hidden=!regularOutcome().pending||!!game?.overtime;
+ renderOvertimeEditor();$('overtimeSetup').showModal();$('overtimeSetup').scrollTop=0;
+}
+function closeOvertimeSetup(){overtimeImportToken++;$('overtimeSetup').close();overtimeDraft=null;}
+function renderOvertimeEditor(){
+ $('overtimeEditor').innerHTML=overtimeDraft.map((p,i)=>`<section class="item-editor stack"><div class="row"><h3>加赛第${i+1}组 · 配对题</h3><select aria-label="加赛第${i+1}组题型" onchange="changeOvertimeType(${i},this.value)">${typeOptions(p.type)}</select><label>每题 <input aria-label="加赛第${i+1}组秒数" type="number" min="1" style="width:85px" value="${esc(p.seconds)}" oninput="overtimeDraft[${i}].seconds=this.value"> 秒</label></div><div class="formgrid">${p.questions.map((q,j)=>`<div class="field"><b>本组${j===0?'先':'后'}答题</b><label>题目<textarea oninput="overtimeDraft[${i}].questions[${j}].prompt=this.value">${esc(q.prompt)}</textarea></label><label>选项（每行一个，非选择题留空）<textarea oninput="overtimeDraft[${i}].questions[${j}].options=this.value.split('\\n').map(x=>x.trim()).filter(Boolean)">${esc(q.options.join('\n'))}</textarea></label><label>答案<textarea oninput="overtimeDraft[${i}].questions[${j}].answer=this.value">${esc(q.answer)}</textarea></label></div>`).join('')}</div></section>`).join('');
+}
+function changeOvertimeType(i,type){const p=overtimeDraft[i];p.type=type;p.seconds=TIMES[type]||55;p.questions.forEach(q=>q.type=type);renderOvertimeEditor();}
+function previewOvertimeItems(items){
+ if(items.length!==6)throw Error(`读取到${items.length}题；请导入正好6题，按1—2、3—4、5—6配对。`);
+ overtimeDraft=[0,2,4].map(i=>({type:items[i].type,seconds:items[i].seconds||TIMES[items[i].type]||55,questions:items.slice(i,i+2).map(q=>({...q,seconds:null}))}));
+ renderOvertimeEditor();$('overtimeSetupError').textContent='已读取6题。请核对配对题型与难度；每组两题共用上方的作答时长。';
+}
+async function importOvertimeWord(file){
+ if(!file)return;const token=++overtimeImportToken;
+ try{if(!/\.docx$/i.test(file.name))throw Error('请选择.docx文件，旧版.doc请先另存为.docx。');if(file.size>25*1024*1024)throw Error('文件不能超过25MB。');const zip=await JSZip.loadAsync(await file.arrayBuffer()),entry=zip.file('word/document.xml');if(!entry)throw Error('不是有效的Word文档。');const xml=await entry.async('string');if(token!==overtimeImportToken||!overtimeDraft)return;previewOvertimeItems(parseWordXML(xml));}catch(e){if(token===overtimeImportToken)$('overtimeSetupError').textContent=e.message;}
+}
+function importOvertimePaste(){try{previewOvertimeItems(parseText($('overtimePaste').value));}catch(e){$('overtimeSetupError').textContent=e.message;}}
+function saveOvertimeBank(){
+ const errors=overtimePairErrors(overtimeDraft);if(errors.length){$('overtimeSetupError').textContent=errors.join('\n');$('overtimeSetupError').scrollIntoView({block:'center'});return false;}
+ const previous=store.overtimeBank;store.overtimeBank=clone(overtimeDraft);store.overtimeBank.forEach(p=>{p.seconds=+p.seconds;p.questions.forEach(q=>q.seconds=null);});
+ if(!persist()){if(previous)store.overtimeBank=previous;else delete store.overtimeBank;$('overtimeSetupError').textContent='保存失败，编辑内容仍保留。';return false;}return true;
+}
+function saveOvertimeSetup(){if(saveOvertimeBank()){closeOvertimeSetup();notify('独立加赛题库已保存，共3组6题。');}}
+function enterOvertime(){if(game?.overtime)openOvertimeArena();else openOvertimeSetup();}
+function launchOvertime(){
+ if(!game||!regularOutcome().pending||game.overtime||!saveOvertimeBank())return;
+ game.overtime={pairs:clone(store.overtimeBank),firstTeam:randomIndex(2)?'O':'X',pairIndex:0,actors:{X:null,O:null},excluded:[],log:[],phase:'ready',winner:null,musicEnabled:true,undo:null};
+ game.overtime.actors[overtimeOrder()[0]]=drawOvertimeMember(overtimeOrder()[0]);
+ closeOvertimeSetup();$('summary').close();openOvertimeArena();startOvertimeMusic();
+ $('overtimeIntro').hidden=false;$('overtimeIntro').classList.remove('ot-flash');void $('overtimeIntro').offsetWidth;$('overtimeIntro').classList.add('ot-flash');
+ clearTimeout(overtimeIntroTimer);overtimeIntroTimer=setTimeout(()=>$('overtimeIntro').hidden=true,matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800);
+}
+function openOvertimeArena(){if(!game?.overtime||game.active)return;$('summary').close();renderOvertimeArena();if(!$('overtimeArena').open)$('overtimeArena').showModal();}
+function renderOvertimeArena(){
+ const ot=game.overtime,order=overtimeOrder(),pairLog=ot.log.filter(l=>l.pair===ot.pairIndex);$('overtimeRound').textContent=`加赛第 ${ot.pairIndex+1} 组 / 最多3组`;
+ $('overtimeOrder').textContent=`${game.settings[order[0]]}先答 → ${game.settings[order[1]]}后答 · ${TYPES[ot.pairs[ot.pairIndex].type]} · 每题${ot.pairs[ot.pairIndex].seconds}秒`;
+ const team=order[Math.min(pairLog.length,1)],a=ot.actors[team],result=pairLog.find(l=>l.team===team);
+ $('overtimePlayers').innerHTML=`<section class="ot-player ${team==='O'?'red':''}"><span class="badge">${esc(game.settings[team])} · ${team===order[0]?'先答':'后答'}</span><h2>${a?esc(a.member):'等待抽选成员'}</h2><p>${a?`第${a.group+1}组 · 组内${a.memberIndex+1}号`:'点击下方按钮，随机抽选本队成员'}</p><p>${result?resultLabel(result.result):'等待独立作答'}</p>${!result&&a&&ot.phase==='ready'?`<button class="small" onclick="markOvertimeAbsent('${team}')">缺席，重新抽选</button>`:''}</section>`;
+ $('overtimeNext').hidden=ot.phase==='finished';$('overtimeNext').disabled=false;
+ $('overtimeNext').textContent=ot.phase==='pairEnd'?'换成员、交换先答队伍 →':a?`显示${game.settings[team]}题目并开始计时`:`抽选${game.settings[team]}${team===order[0]?'先':'后'}答成员`;
+ $('overtimeResult').textContent=ot.phase==='finished'?ot.winner?game.settings[ot.winner]+'加赛获胜！':'三组后仍相同，双方并列获胜。':ot.phase==='pairEnd'?'两队本组结果相同，进入下一组。':'须等两队均作答后判断胜负；加赛不占格、不改变正式赛总分。';
+ $('overtimeUndo').disabled=!ot.undo;updateOvertimeMusicButtons();
+
+}
+function advanceOvertime(){
+ const ot=game?.overtime;if(!ot||game.active||ot.phase==='finished')return;
+ if(ot.phase==='pairEnd'){ot.pairIndex++;ot.phase='ready';ot.actors={X:null,O:null};ot.actors[overtimeOrder()[0]]=drawOvertimeMember(overtimeOrder()[0]);renderOvertimeArena();startOvertimeMusic();return;}
+ if(ot.phase!=='ready')return;
+ const nextTeam=overtimeOrder()[ot.log.length%2];if(!ot.actors[nextTeam]){ot.actors[nextTeam]=drawOvertimeMember(nextTeam);renderOvertimeArena();if(!ot.actors[nextTeam])notify('本队没有可用成员，请核对到场名单。');return;}
+ clearTimeout(overtimeIntroTimer);$('overtimeIntro').hidden=true;const q=ot.pairs[ot.pairIndex],team=overtimeOrder()[ot.log.length%2];ot.phase='answering';
+ game.active={overtime:true,cell:0,actor:clone(ot.actors[team]),status:'revealing',total:q.seconds*1000,remaining:q.seconds*1000,feedback:false};game.paused=false;
+ $('overtimeArena').close();$('question').showModal();renderQuestion();render();startOvertimeMusic();
+ clearTimeout(revealTimeout);revealTimeout=setTimeout(()=>{if(game?.active?.overtime&&game.active.status==='revealing'){game.active.status='running';game.active.deadline=performance.now()+game.active.remaining;renderQuestion();runClock();}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:420);
+}
+function renderOvertimeQuestion(){const ot=game.overtime;$('questionType').textContent=`加赛第${ot.pairIndex+1}组 · ${(ot.log.length-(game.active.feedback?1:0))%2?'后答':'先答'} · ${TYPES[questionItem().type]}`;$('wrongBtn').textContent='答错';$('correctBtn').textContent='答对';if(game.active.feedback){$('questionStatus').textContent='回答正确！请查看参考答案。';$('continueBtn').textContent='返回加赛 →';}updateOvertimeMusicButtons();}
+function settleOvertime(result){
+ const ot=game.overtime,a=game.active;stopClock();clearTimeout(revealTimeout);const before=clone(ot);before.undo=null;before.phase='ready';ot.undo=before;
+ ot.log.push({...clone(a.actor),pair:ot.pairIndex,result,question:clone(questionItem())});game.paused=false;
+ if(ot.log.length%2===0){const winner=overtimePairWinner(ot.log.slice(-2));ot.winner=winner;ot.phase=winner||ot.pairIndex===2?'finished':'pairEnd';stopOvertimeMusic();}else ot.phase='ready';
+ playSound(result);if(result==='correct'){a.feedback=true;a.status='feedback';renderQuestion();render();}else{game.active=null;$('question').close();render();openOvertimeArena();}
+}
+function undoOvertime(){if(!game?.overtime?.undo||game.active)return;stopOvertimeMusic();game.overtime=clone(game.overtime.undo);renderOvertimeArena();}
+function closeOvertimeArena(){stopOvertimeMusic();clearTimeout(overtimeIntroTimer);$('overtimeIntro').hidden=true;$('overtimeArena').close();openSummary();}
+function updateOvertimeMusicButtons(){
+ const ot=game?.overtime;if(!ot)return;
+ const playing=!!overtimeMusicTimer&&audioContext?.state==='running';
+ const label=!ot.musicEnabled?'配乐：关 · 点击开启':ot.phase==='finished'?'配乐：已结束':playing?'配乐：播放中 · 点击关闭':'配乐：已暂停 · 点击播放';
+ for(const id of ['overtimeMusic','overtimeQuestionMusic']){$(id).textContent=label;$(id).setAttribute('aria-pressed',String(playing));}
+}
+async function startOvertimeMusic(){
+ if(!game?.overtime?.musicEnabled||document.hidden||game.paused||game.overtime.phase==='finished'){updateOvertimeMusicButtons();return;}
+ if(overtimeMusicTimer&&audioContext?.state==='running')return;
+ stopOvertimeMusic();const token=++overtimeAudioToken;
+ try{
+  if(!audioContext||audioContext.state==='closed')audioContext=new(window.AudioContext||window.webkitAudioContext)();
+  audioContext.onstatechange=updateOvertimeMusicButtons;
+  await audioContext.resume();
+  if(token!==overtimeAudioToken)return;
+  if(audioContext.state!=='running')throw Error('音频未启动');
+  overtimeGain=audioContext.createGain();overtimeGain.gain.value=.07;overtimeGain.connect(audioContext.destination);
+  // 140 BPM: a minor-key ostinato, heartbeat drums and alternating metallic ticks.
+  const tone=(hz,type,level,length,t,drop)=>{
+   const osc=audioContext.createOscillator(),env=audioContext.createGain();osc.type=type;osc.frequency.setValueAtTime(hz,t);
+   if(drop)osc.frequency.exponentialRampToValueAtTime(drop,t+length*.75);
+   env.gain.setValueAtTime(0,t);env.gain.linearRampToValueAtTime(level,t+.006);env.gain.exponentialRampToValueAtTime(.0001,t+length);
+   osc.connect(env);env.connect(overtimeGain);osc.start(t);osc.stop(t+length+.01);osc.onended=()=>{osc.disconnect();env.disconnect();};
+  };
+  overtimeBeat=0;
+  const beat=()=>{
+   if(audioContext.state!=='running'||!overtimeGain)return;
+   const step=overtimeBeat++%32,t=audioContext.currentTime;
+   const notes=[220,220,261.63,220,329.63,220,233.08,220,220,261.63,329.63,349.23,329.63,261.63,233.08,207.65];
+   tone(notes[step%16],'triangle',step%4===0?.34:.22,.095,t);
+   if(step%4===0)tone(155,'sine',.68,.18,t,52);
+   if(step%8===3)tone(125,'sine',.32,.12,t,62);
+   if(step%2===1)tone(step%4===3?1760:1320,'triangle',.055,.035,t);
+   if(step%8===0){const bass=step<16?110:103.83;tone(bass,'triangle',.27,.38,t);}
+   if(step>=28)tone([440,466.16,523.25,587.33][step-28],'triangle',.13,.085,t);
+  };
+  beat();overtimeMusicTimer=setInterval(beat,60000/140/4);updateOvertimeMusicButtons();
+ }catch(e){if(token!==overtimeAudioToken)return;stopOvertimeMusic();notify('配乐未能启动，请点击配乐按钮重试，并检查浏览器标签页是否静音。');}
+}
+function stopOvertimeMusic(){overtimeAudioToken++;clearInterval(overtimeMusicTimer);overtimeMusicTimer=null;if(overtimeGain){overtimeGain.disconnect();overtimeGain=null;}updateOvertimeMusicButtons();}
+function toggleOvertimeMusic(){
+ if(!game?.overtime)return;
+ if(overtimeMusicTimer&&audioContext?.state==='running'){game.overtime.musicEnabled=false;stopOvertimeMusic();}
+ else{game.overtime.musicEnabled=true;if(game.paused)notify('请先继续答题，再播放配乐。');else startOvertimeMusic();}
+ updateOvertimeMusicButtons();
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&game?.active?.overtime&&['running','revealing'].includes(game.active.status))togglePause();if(document.hidden)stopOvertimeMusic();});
+function validateOvertime(g,check,item,member){
+ const valid=ot=>{
+  check(ot&&overtimePairErrors(ot.pairs).length===0&&['X','O'].includes(ot.firstTeam)&&Number.isInteger(ot.pairIndex)&&ot.pairIndex>=0&&ot.pairIndex<3&&['ready','answering','pairEnd','finished'].includes(ot.phase)&&typeof ot.musicEnabled==='boolean');
+  check(Array.isArray(ot.excluded)&&ot.excluded.every(k=>typeof k==='string'&&/^[0-7]:[0-5]$/.test(k))&&new Set(ot.excluded).size===ot.excluded.length);
+  check(ot.actors&&Array.isArray(ot.log)&&ot.log.length<=6);for(const team of ['X','O'])if(ot.actors[team]!==null){member(ot.actors[team],g);check(ot.actors[team].team===team);}
+  ot.log.forEach((l,i)=>{member(l,g);item(l.question);check(l.pair===Math.floor(i/2)&&['correct','wrong','timeout'].includes(l.result));const order=overtimeOrder({...ot,pairIndex:l.pair});check(l.team===order[i%2]);});
+  check(ot.log.length>=ot.pairIndex*2&&ot.log.length<=ot.pairIndex*2+2);
+  for(let i=0;i<ot.pairIndex;i++)check(!overtimePairWinner(ot.log.slice(i*2,i*2+2)));
+  const done=ot.log.length===ot.pairIndex*2+2,winner=done?overtimePairWinner(ot.log.slice(-2)):null;
+  check(ot.winner===winner);check(done?ot.phase===(winner||ot.pairIndex===2?'finished':'pairEnd'):['ready','answering'].includes(ot.phase));
+ };
+ check(g.phase==='finished'&&regularOutcome(g).pending);valid(g.overtime);if(g.overtime.undo){check(g.overtime.undo.undo===null);valid(g.overtime.undo);}
+ check((g.overtime.phase==='answering')===!!(g.active?.overtime&&!g.active.feedback));
+ if(g.active?.overtime){const index=g.overtime.log.length-(g.active.feedback?1:0);const team=overtimeOrder(g.overtime)[index%2];if(g.active.feedback)check(g.overtime.log.at(-1).team===team);check(overtimeMemberKey(g.active.actor)===overtimeMemberKey(g.overtime.actors[team]));}
+}
+const overtimeStyle=document.createElement('style');overtimeStyle.textContent=`
+.ot-players{display:grid;grid-template-columns:1fr;gap:20px}.ot-player{text-align:center;padding:24px;background:linear-gradient(135deg,#14425a,#13243f);border:1px solid #5ed9ff;border-radius:16px}.ot-player.red{background:linear-gradient(135deg,#522733,#231c3e);border-color:#ff857b}.ot-player h2{font-size:32px;margin:14px 0}.ot-player p{margin:8px 0}#overtimeArena{width:min(1050px,96vw)}#overtimeArena header{background:linear-gradient(100deg,#442338,#162945)}#overtimeResult{font-size:21px;font-weight:800;color:#dfffad}#overtimeIntro{position:absolute;inset:0;z-index:10;display:grid;place-content:center;text-align:center;background:radial-gradient(ellipse,#422340,#071525 75%);pointer-events:none}#overtimeIntro strong{font-size:clamp(40px,7vw,80px);font-style:italic;color:#d5ff8c;text-shadow:0 0 35px #b9f56866}#overtimeIntro span{letter-spacing:6px;color:#77dcff}.ot-flash{animation:ot-entry 1.8s ease both}@keyframes ot-entry{0%{opacity:0;transform:scale(.95)}18%,75%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.02)}}#overtimeSummaryLog{white-space:pre-wrap}#overtimeEditor{display:flex;flex-direction:column;gap:18px}@media(max-width:560px){.ot-players{grid-template-columns:1fr;gap:10px}.ot-player{padding:12px}.ot-player h2{font-size:24px}}@media(prefers-reduced-motion:reduce){.ot-flash{animation:none}}`;
+document.head.append(overtimeStyle);
+const overtimeSummary=document.createElement('section');overtimeSummary.id='overtimeSummary';overtimeSummary.className='stack';overtimeSummary.hidden=true;overtimeSummary.innerHTML='<p id="overtimeVerdict" class="notice"></p><button id="overtimeEnter" class="primary" onclick="enterOvertime()">平局 · 准备加赛 →</button><p id="overtimeSummaryLog" class="hint"></p>';$('summaryScores').after(overtimeSummary);
+const overtimeSetup=document.createElement('dialog');overtimeSetup.id='overtimeSetup';overtimeSetup.className='modal';overtimeSetup.innerHTML=`<header class="row spread"><div><h2>独立加赛题库 · 3组6题</h2><p class="hint">不占用正式题库的3个名额</p></div><button onclick="closeOvertimeSetup()">关闭 ✕</button></header><div class="body stack"><p class="notice">每相邻两题配成一组，分别供先答队和后答队使用。两题须同题型、同秒数；请教师核对难度相近，并准备正式赛未使用的新题。每组两队均答完后才判断胜负，最多3组，仍相同则并列。</p><label class="field">导入6道加赛题（.docx）<input id="overtimeWord" type="file" accept=".docx" onchange="importOvertimeWord(this.files[0])"></label><details><summary>Word格式 / 粘贴备用</summary><p class="hint">沿用正式题库的“题型标题、题目：、答案：”格式或“题型｜题目｜答案”三列表格。按第1—2题、第3—4题、第5—6题配对。支持原有五类题型，不需要解析。</p><textarea id="overtimePaste" aria-label="粘贴加赛题目" style="width:100%"></textarea><button onclick="importOvertimePaste()">读取6题到预览</button></details><div id="overtimeEditor"></div><p id="overtimeSetupError" class="error" role="status"></p></div><footer class="row spread"><button onclick="saveOvertimeSetup()">保存加赛题库</button><button id="overtimeLaunch" class="primary" onclick="launchOvertime()">随机选人及先答队伍 · 进入加赛</button></footer>`;document.body.append(overtimeSetup);overtimeSetup.addEventListener('cancel',e=>{e.preventDefault();closeOvertimeSetup();});
+const overtimeArena=document.createElement('dialog');overtimeArena.id='overtimeArena';overtimeArena.className='modal';overtimeArena.innerHTML=`<header class="row spread"><div><div class="eyebrow">OVERTIME / 决胜时刻</div><h2 id="overtimeRound"></h2></div><button onclick="closeOvertimeArena()">返回结算</button></header><div class="body stack"><p id="overtimeOrder" class="notice"></p><p class="hint">先选未参加过加赛者，再从正式赛作答次数最少的成员中随机抽取。每次只显示当前成员，先答结束后点击抽选后答成员。只能因缺席重抽；下一组交换先答队伍。</p><div id="overtimePlayers" class="ot-players"></div><p id="overtimeResult"></p></div><footer class="row"><button id="overtimeMusic" onclick="toggleOvertimeMusic()">配乐：开</button><button onclick="downloadBackup()">备份进度</button><button id="overtimeUndo" onclick="undoOvertime()">撤销上次加赛判定</button><button id="overtimeNext" class="primary" onclick="advanceOvertime()"></button></footer><div id="overtimeIntro" hidden><span>THE FINAL CHALLENGE</span><strong>决 胜 加 赛</strong><p>公平抽选 · 双方作答 · 最多三组</p></div>`;document.body.append(overtimeArena);overtimeArena.addEventListener('cancel',e=>{e.preventDefault();closeOvertimeArena();});
+const overtimeSetupButton=document.createElement('button');overtimeSetupButton.id='overtimeSetupBtn';overtimeSetupButton.textContent='加赛题库（独立）';overtimeSetupButton.onclick=openOvertimeSetup;$('newBankBtn').after(overtimeSetupButton);
+const overtimeQuestionMusic=document.createElement('button');overtimeQuestionMusic.id='overtimeQuestionMusic';overtimeQuestionMusic.hidden=true;overtimeQuestionMusic.className='small';overtimeQuestionMusic.onclick=toggleOvertimeMusic;$('question').querySelector('footer').prepend(overtimeQuestionMusic);
+
 loadStore();if(store.playMode==='single'){store.playMode='contest';persist();}render();
 </script></body></html>
